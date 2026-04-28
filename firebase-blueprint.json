@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile with balance and rankings.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "balance": { "type": "number", "description": "User's in-game wallet balance." },
+        "rank": { "type": "string", "enum": ["Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"] },
+        "tier": { "type": "number", "description": "Numerical tier within a rank." },
+        "wins": { "type": "number" },
+        "losses": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "balance", "rank", "tier"]
+    },
+    "Tournament": {
+      "title": "Tournament",
+      "description": "A gaming tournament hosted online or offline.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "gameName": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["online", "offline"] },
+        "location": { "type": "string", "description": "Physical location for offline tournaments." },
+        "entryFee": { "type": "number" },
+        "prizePool": { "type": "number" },
+        "status": { "type": "string", "enum": ["upcoming", "ongoing", "completed", "cancelled"] },
+        "maxPlayers": { "type": "number" },
+        "currentPlayers": { "type": "number" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "creatorId": { "type": "string" },
+        "winnerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "gameName", "entryFee", "prizePool", "status", "startDate"]
+    },
+    "Registration": {
+      "title": "Tournament Registration",
+      "description": "A record of a player registering for a tournament.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tournamentId": { "type": "string" },
+        "userId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "withdrawn", "disqualified"] },
+        "registeredAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["tournamentId", "userId", "status", "registeredAt"]
+    },
+    "Transaction": {
+      "title": "Financial Transaction",
+      "description": "A record of deposit, withdrawal, or betting.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["deposit", "withdrawal", "entry_fee", "prize_win"] },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
+        "method": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "amount", "type", "status", "method", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profile data."
+    },
+    "tournaments/{tournamentId}": {
+      "schema": "Tournament",
+      "description": "Tournament details."
+    },
+    "tournaments/{tournamentId}/registrations/{registrationId}": {
+      "schema": "Registration",
+      "description": "Registrations for a specific tournament."
+    },
+    "transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Financial transaction records."
+    }
+  }
+}

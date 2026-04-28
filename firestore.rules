@@ -1,0 +1,111 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // User Rules
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn(); // In a marketplace, seeing other players/ranks is common
+      
+      allow create: if isSignedIn() && isOwner(userId) && isValidUser(incoming());
+      allow update: if isSignedIn() && isOwner(userId) && isValidUser(incoming()) && (
+        // Regular update (displayName, photoURL)
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt']) ||
+        // System updates like balance/wins/rank should ideally be done via Admin/Functions,
+        // but for this applet we'll allow it if logic is strict.
+        // Actually, for security, users should NEVER update their own balance.
+        // We'll keep it restricted to non-sensitive fields.
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt'])
+      );
+
+      function isValidUser(data) {
+        return data.uid == request.auth.uid &&
+               data.email is string &&
+               data.balance is number && data.balance >= 0 &&
+               data.rank in ["Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"] &&
+               data.tier is number &&
+               data.keys().hasAll(['uid', 'email', 'balance', 'rank', 'tier']);
+      }
+    }
+
+    // Tournament Rules
+    match /tournaments/{tournamentId} {
+      allow read: if true; // Public marketplace
+      
+      allow create: if isSignedIn() && isValidTournament(incoming());
+      allow update: if isSignedIn() && (
+        // Creator can update details
+        (isOwner(existing().creatorId) && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'status', 'maxPlayers', 'winnerId'])) ||
+        // Anyone can increment currentPlayers when registering (should be done atomically)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['currentPlayers']))
+      );
+
+      function isValidTournament(data) {
+        return data.title is string && data.title.size() > 0 &&
+               data.gameName is string &&
+               data.entryFee is number && data.entryFee >= 0 &&
+               data.prizePool is number && data.prizePool >= 0 &&
+               data.status in ["upcoming", "ongoing", "completed", "cancelled"] &&
+               data.keys().hasAll(['title', 'gameName', 'entryFee', 'prizePool', 'status', 'startDate']);
+      }
+
+      // Registration Subcollection
+      match /registrations/{registrationId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && isOwner(incoming().userId) && isValidRegistration(incoming());
+        allow update: if isSignedIn() && (isOwner(existing().userId) || isOwner(get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.creatorId));
+
+        function isValidRegistration(data) {
+          return data.tournamentId == tournamentId &&
+                 data.userId == request.auth.uid &&
+                 data.status in ["active", "withdrawn", "disqualified"] &&
+                 data.keys().hasAll(['tournamentId', 'userId', 'status', 'registeredAt']);
+        }
+      }
+    }
+
+    // Transaction Rules (Strictly restricted)
+    match /transactions/{transactionId} {
+      allow get: if isSignedIn() && isOwner(existing().userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn() && isOwner(incoming().userId) && isValidTransaction(incoming());
+      // No updates or deletes for financial history
+      allow update, delete: if false;
+
+      function isValidTransaction(data) {
+        return data.userId == request.auth.uid &&
+               data.amount is number &&
+               data.type in ["deposit", "withdrawal", "entry_fee", "prize_win"] &&
+               data.status in ["pending", "completed", "failed"] &&
+               data.keys().hasAll(['userId', 'amount', 'type', 'status', 'method', 'createdAt']);
+      }
+    }
+  }
+}

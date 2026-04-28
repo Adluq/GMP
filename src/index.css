@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-cyan: #00f2ff;
+  --color-brand-purple: #9d00ff;
+  --color-dark-bg: #0a0a0c;
+  --color-dark-card: #141418;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-dark-bg text-gray-100 font-sans;
+  }
+}
+
+.cyber-border {
+  @apply border border-white/10 hover:border-brand-cyan/50 transition-colors duration-300;
+}
+
+.cyber-button {
+  @apply px-6 py-2 bg-brand-cyan text-black font-bold uppercase tracking-wider hover:bg-white hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50;
+}
+
+.cyber-card {
+  @apply bg-dark-card p-6 border border-white/5 shadow-2xl;
+}
